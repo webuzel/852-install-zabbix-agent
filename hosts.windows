@@ -1,0 +1,50 @@
+[windows]
+test-server.acme.com zabbix_host_description='The special server for testing purposes.'
+[windows:vars]
+ansible_user={{ zabbix_install_user }}
+ansible_password={{ zabbix_install_password }}
+ansible_connection=winrm
+ansible_winrm_transport=ntlm,credssp,kerberos
+ansible_winrm_server_cert_validation=ignore
+ansible_port=5985
+ansible_winrm_scheme=http
+validate_certs=false
+
+zabbix_agent_version="6.4"
+zabbix_agent_version_minor="*"
+zabbix_version_long="6.4.11"
+zabbix_repo=zabbix
+zabbix_agent2=false
+zabbix_agent_package_remove=false
+zabbix_agent_package_state=latest
+zabbix_agent_install_agent_only=true
+
+zabbix_agent_server={{ zabbix_install_server }}
+zabbix_agent_serveractive={{ zabbix_install_serveractive }}
+
+zabbix_agent_logfilesize=1
+zabbix_agent_logtype=file
+zabbix_agent_debuglevel=3
+
+zabbix_agent_hostname=''
+zabbix_agent_hostnameitem='system.hostname[shorthost,lower]'
+
+zabbix_win_download_link='https://cdn.zabbix.com/zabbix/binaries/stable/6.4/6.4.11/zabbix_agent-6.4.11-windows-amd64.zip'
+zabbix_win_install_dir='C:\Program Files\Zabbix Agent'
+zabbix_win_firewall_management=true
+
+zabbix_host_status=enabled
+zabbix_host_state=present
+
+zabbix_host_groups=["Windows Servers"]
+zabbix_host_templates=["Windows by Zabbix agent"]
+zabbix_host_inventory_mode=disabled
+zabbix_host_description='Windows server'
+zabbix_host_interface_use_ip='0'
+zabbix_host_interface_type=agent
+zabbix_host_interface_port='10050'
+zabbix_host_interface_ip=''
+
+[hostsdisabled]
+#winhost02.local zabbix_host_groups='["Custom group"]'
+#winhost03.local zabbix_host_status=disabled zabbix_host_visible_name=Special

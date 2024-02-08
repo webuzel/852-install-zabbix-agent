@@ -1,0 +1,60 @@
+---
+
+- name: 'Установка готовой роли "Zabbix Agent" на хостах:'
+  hosts: linux:windows
+  tasks:
+    - name: 'Проверка версии модуля community.zabbix:'
+      ansible.builtin.debug:
+        msg: "community.zabbix version {{ lookup('community.general.collection_version', 'community.zabbix') }}"
+
+    - name: Установка роли
+      ansible.builtin.include_role:
+        name: community.zabbix.zabbix_agent
+  tags:
+    - install # Если нужна только установка, то в строке запуска скрипта добавить -t install
+
+# Регистрация через роль zabbix.zabbix.zabbix_host, так как роль comminity.zabbix.zabbix_host пока не работает ("поломали" на ansible 6.4)
+- name: 'Регистрация вновь установленных агентов на Zabbix-сервере {{ zabbix_register_server }}'
+  hosts: localhost
+  tasks:
+    - name: 'Проверка версии модуля zabbix.zabbix:'
+      ansible.builtin.debug:
+        msg: "zabbix.zabbix version {{ lookup('community.general.collection_version', 'zabbix.zabbix') }}"
+
+    - name: 'Регистрация хоста сервере Zabbix:'
+      vars:
+        ### Zabbix API properties
+        ansible_host: "{{ zabbix_register_server }}"
+        zabbix_api_url: "{{ zabbix_register_url_path }}"
+        ansible_connection: httpapi
+        ansible_network_os: zabbix.zabbix.zabbix
+        ansible_httpapi_port: 80
+        ansible_httpapi_use_ssl: false
+        ansible_httpapi_validate_certs: false
+        ansible_user: "{{ zabbix_register_user }}"
+        ansible_httpapi_pass: "{{ zabbix_register_password }}"
+      zabbix.zabbix.zabbix_host:
+        ### Zabbix host configuration
+        state: "{{ hostvars[item].zabbix_host_state }}"
+        host: "{{ item | split('.') | first }}"
+        name: >
+          {{ hostvars[item].zabbix_host_visible_name | default(item | split('.') | first) }}
+        hostgroups: "{{ hostvars[item].zabbix_host_groups }}"
+        templates: "{{ hostvars[item].zabbix_host_templates }}"
+        status: "{{ hostvars[item].zabbix_host_status }}"
+        description: >
+          "{{ hostvars[item].zabbix_host_description | default('') }}
+          OS: {{ hostvars[item].ansible_distribution | default('') }}
+          {{ hostvars[item].ansible_distribution_version | default('') }}"
+        inventory_mode: "{{ hostvars[item].zabbix_host_inventory_mode }}"
+        interfaces:
+          - type: "{{ hostvars[item].zabbix_host_interface_type }}"
+            ip: "{{ hostvars[item].zabbix_host_interface_ip }}"
+            dns: "{{ item }}"
+            useip: "{{ hostvars[item].zabbix_host_interface_use_ip }}"
+            port: "{{ hostvars[item].zabbix_host_interface_port }}"
+      with_items:
+        - "{{ groups['windows'] if groups['windows'] is defined else [] }}"
+        - "{{ groups['linux'] if groups['linux'] is defined else [] }}"
+  tags:
+    - add-host
