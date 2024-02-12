@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # v.2024-02-12-GIT-EDITION
 
@@ -61,7 +61,7 @@ IMagenta='\e[0;95m' # Фиолетовый
 ICyan='\e[0;96m'  # Голубой
 Color_Off='\e[0m' # Цвет по-умолчанию
 printf_color() {
-	printf "%b%s%b\n" "$1" "$2" "${Color_Off}"
+    printf "%b%s%b\n" "$1" "$2" "${Color_Off}"
 }
 # Пример:
 # printf_color "${IRed}" "Текст красным..."
@@ -69,7 +69,7 @@ printf_color() {
 # Функция, которая показывает какие параметры будут использованы при запуске плейбука:
 showRunConditions() {
     printf "\n******************************************************************\n"
-	printf "Для запуска плейбука %s будут использованы следующие параметры:\n" \
+    printf "Для запуска плейбука %s будут использованы следующие параметры:\n" \
            "${yaml_filename}"
     if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
     printf \
@@ -79,12 +79,12 @@ showRunConditions() {
     if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
     printf \
     " Сервер Zabbix для регистрации узлов: %s\n Путь к сервису Zabbix: %s\n Имя пользователя с полномочиями на добавление узлов: %s\n" \
-		"${bold}${zabbix_register_server}${normal}" \
-		"${bold}${zabbix_register_url_path}${normal}" \
-		"${bold}${zabbix_register_user}${normal}"
+        "${bold}${zabbix_register_server}${normal}" \
+        "${bold}${zabbix_register_url_path}${normal}" \
+        "${bold}${zabbix_register_user}${normal}"
     fi
     if [[ -n ${extra_options} ]]; then
-		printf " Дополнительные опции запуска: %s\n" "${bold}${extra_options}${normal}"
+        printf " Дополнительные опции запуска: %s\n" "${bold}${extra_options}${normal}"
     fi
     printf "******************************************************************\n"
 }
@@ -171,7 +171,7 @@ fi
 if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
     # Получение имени пользователя (на хостах):
     printf "Для установки Zabbix-агента на узлах необходимо указать имя пользователя с административными полномочиями.\n"
-    
+
     keyring_value1="$(retrieveValueFromKeyring "WindowsServer" "Name")"
     if [[ -n ${keyring_value1} ]]; then
         if [[ ${script_yes_answer} -eq 1 ]]; then
@@ -182,7 +182,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
         else
             echo "Обнаружено ранее сохранённое имя такого пользователя (${keyring_value1}). Использовать в этот раз?"
             select yn in "Yes / Да" "No / Нет"; do
-                case $yn in
+                case ${yn} in
                     Yes* )
                         zabbix_install_user=${keyring_value1}
                         # Если ранее было сохранено имя, то и пароль тоже:
@@ -197,7 +197,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
             done
         fi
     fi
-    
+
     if [[ -z ${zabbix_install_user} ]]; then
         read -r -p "Введите имя пользователя (или нажмите [Enter] для выхода): " zabbix_install_user
         if [[ -z ${zabbix_install_user} ]]; then
@@ -236,7 +236,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
         else
             echo "Обнаружено ранее сохранённое имя такого пользователя (${keyring_value2}). Использовать в этот раз?"
             select yn in "Yes / Да" "No / Нет"; do
-                case $yn in
+                case ${yn} in
                     Yes* )
                         zabbix_register_user=${keyring_value2}
                         # Если ранее было сохранено имя, то и пароль тоже:
@@ -278,7 +278,7 @@ if [[ ${DEBUG_MODE} -eq 1 ]]; then
     if [[ ${script_yes_answer} -eq 0 ]]; then
         echo "Продолжить выполнение?"
         select yn in "Yes / Да" "No / Нет"; do
-            case $yn in
+            case ${yn} in
                 Yes* ) break ;;
                 No* ) exit 5 ;;
                 * ) echo "Необходимо указать номер варианта из предложенных (или Ctrl-C также для прерывания выполнения)." ;;
@@ -311,7 +311,7 @@ ansible-playbook -i "${hosts_files[1]}" "${yaml_filename}" \
 if [[ (( ${script_flow} = 0 || ${script_flow} = 1 ) && -z ${keyring_value1} ) || (( ${script_flow} = 0 ||  ${script_flow} = 2 ) && -z ${keyring_value2} ) ]]; then
     echo "Были введены имена и пароли. Сохранить их для следующих запусков скрипта?"
     select yn in "Yes / Да" "No / Нет"; do
-        case $yn in
+        case ${yn} in
             Yes* ) 
                 if [[ ( -z ${keyring_value1} ) ]]; then
                     storeValueInKeyring "WindowsServer" "Name" "${zabbix_install_user}"
