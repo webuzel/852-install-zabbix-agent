@@ -3,11 +3,11 @@
 - name: 'Установка готовой роли "Zabbix Agent" на хостах:'
   hosts: linux:windows
   tasks:
-    - name: 'Проверка версии модуля community.zabbix:'
+    - name: 'Отображение версии модуля community.zabbix:'
       ansible.builtin.debug:
         msg: "community.zabbix version {{ lookup('community.general.collection_version', 'community.zabbix') }}"
 
-    - name: Установка роли
+    - name: 'Установка роли:'
       ansible.builtin.include_role:
         name: community.zabbix.zabbix_agent
   tags:
@@ -17,36 +17,54 @@
 - name: 'Регистрация вновь установленных агентов на Zabbix-сервере {{ zabbix_register_server }}'
   hosts: localhost
   tasks:
-    - name: 'Проверка версии модуля zabbix.zabbix:'
+    - name: 'Отображение версии модуля zabbix.zabbix:'
       ansible.builtin.debug:
         msg: "zabbix.zabbix version {{ lookup('community.general.collection_version', 'zabbix.zabbix') }}"
 
     - name: 'Регистрация хоста сервере Zabbix:'
       vars:
         ### Zabbix API properties
+        # Zabbix-сервер, на котором регистрируется хост:
         ansible_host: "{{ zabbix_register_server }}"
+        # Каталог приложения (если есть) на веб-сервере, на котором "опубликован" Zabbix-сервер:
         zabbix_api_url: "{{ zabbix_register_url_path }}"
+        # Способ подключения к Zabbix-севреру:
         ansible_connection: httpapi
         ansible_network_os: zabbix.zabbix.zabbix
+        # Порт на веб-сервере, на котором работает "публикация" Zabbix-сервера:
         ansible_httpapi_port: 80
+        # Использовать или нет SSL:
         ansible_httpapi_use_ssl: false
+        # Проверять или нет сертификат (если SSL используется):
         ansible_httpapi_validate_certs: false
+        # Имя пользователя с полномочиями регистрировать хосты на Zabbix-сервере:
         ansible_user: "{{ zabbix_register_user }}"
+        # Пароль пользователя, обладающего полномочиями регистрировать хосты на Zabbix-сервере:
         ansible_httpapi_pass: "{{ zabbix_register_password }}"
       zabbix.zabbix.zabbix_host:
         ### Zabbix host configuration
+        # Состояние регистрируемого хоста (значение берётся из hosts-файла, может быть задано индивидуально):
         state: "{{ hostvars[item].zabbix_host_state }}"
+        # Имя регистрируемого хоста (значение берётся из hosts-файла, если записано как FQDN, то берётся слово до первой точки):
         host: "{{ item | split('.') | first }}"
+        # Отображаемое имя регистрируемого хоста (значение берётся из hosts-файла, должно быть задано индивидуально,
+        # и если не задано / не найдено, то формируется из сетевого имени также, как имя хоста -- до первой точки):
         name: >
           {{ hostvars[item].zabbix_host_visible_name | default(item | split('.') | first) }}
+        # Группы, к которым будет отнесён хост при регистрации (значение берётся из hosts-файла, может быть задано индивидуально):
         hostgroups: "{{ hostvars[item].zabbix_host_groups }}"
+        # Шаблоны, которые будут назначены регистрируемому хосту (значение берётся из hosts-файла, может быть задано индивидуально):
         templates: "{{ hostvars[item].zabbix_host_templates }}"
+        # Статус регистрируемого хоста (значение берётся из hosts-файла, может быть задано индивидуально):
         status: "{{ hostvars[item].zabbix_host_status }}"
+        # Описание регистрируемого хоста (значение берётся из hosts-файла, должно быть задано индивидуально, иначе будут записаны пустые значения):
         description: >
           "{{ hostvars[item].zabbix_host_description | default('') }}
           OS: {{ hostvars[item].ansible_distribution | default('') }}
           {{ hostvars[item].ansible_distribution_version | default('') }}"
+        # Режим инвентаризации регистрируемого хоста (значение берётся из hosts-файла, может быть задано индивидуально):
         inventory_mode: "{{ hostvars[item].zabbix_host_inventory_mode }}"
+        # Интерфейсы (в терминах zabbix), по которым сервер будет обращаться к хосту (значения берутся из hosts-файла):
         interfaces:
           - type: "{{ hostvars[item].zabbix_host_interface_type }}"
             ip: "{{ hostvars[item].zabbix_host_interface_ip }}"
@@ -57,4 +75,4 @@
         - "{{ groups['windows'] if groups['windows'] is defined else [] }}"
         - "{{ groups['linux'] if groups['linux'] is defined else [] }}"
   tags:
-    - add-host
+    - add-host # Если нужна только регистрация, то в строке запуска скрипта добавить -t add-host

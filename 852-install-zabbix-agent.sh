@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# v.2024-02-12-GIT-EDITION
+# v.2024-02-13-GIT-EDITION
 
 # ПЕРЕМЕННЫЕ и КОНСТАНТЫ
 # Назначение скрипта:
@@ -40,7 +40,7 @@ zabbix_register_user=""
 zabbix_register_password=""
 
 # Режим отладки:
-DEBUG_MODE=1
+DEBUG_MODE=0
 
 # Вспомогательные переменные.
 # Для форматирования вывода в консоль (для текста: 'полужирный' и 'нормальный'):
@@ -53,12 +53,13 @@ script_flow=0
 script_yes_answer=0
 
 # Функция вывода строки текста "в цвете" (плюс перевод строки)
+# Переменные (константы) для обозначения цветовых аттрибутов текста (неиспользуемые в данном скрипте закомментированы):
 IRed='\e[0;91m'   # Красный
-IGreen='\e[0;92m' # Зелёный
 IYellow='\e[0;93m' # Желтый
-IBlue='\e[0;94m' # Синий
-IMagenta='\e[0;95m' # Фиолетовый
-ICyan='\e[0;96m'  # Голубой
+# IGreen='\e[0;92m' # Зелёный
+# IBlue='\e[0;94m' # Синий
+# IMagenta='\e[0;95m' # Фиолетовый
+# ICyan='\e[0;96m'  # Голубой
 Color_Off='\e[0m' # Цвет по-умолчанию
 printf_color() {
     printf "%b%s%b\n" "$1" "$2" "${Color_Off}"
@@ -66,19 +67,21 @@ printf_color() {
 # Пример:
 # printf_color "${IRed}" "Текст красным..."
 
-# Функция, которая показывает какие параметры будут использованы при запуске плейбука:
+# Функция, которая показывает какие параметры будут использованы при запуске ansible-плейбука:
 showRunConditions() {
     printf "\n******************************************************************\n"
     printf "Для запуска плейбука %s будут использованы следующие параметры:\n" \
            "${yaml_filename}"
+    # Если скрипт выполняется в полном объёме или только установка:
     if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
     printf \
-    " Имя пользователя  с административными полномочиями на узлах: %s \n" \
-    "${bold}${zabbix_install_user}${normal}"
+        " Имя пользователя  с административными полномочиями на узлах: %s \n" \
+        "${bold}${zabbix_install_user}${normal}"
     fi
+    # Если скрипт выполняется в полном объёме или только регистрация:
     if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
     printf \
-    " Сервер Zabbix для регистрации узлов: %s\n Путь к сервису Zabbix: %s\n Имя пользователя с полномочиями на добавление узлов: %s\n" \
+        " Сервер Zabbix для регистрации узлов: %s\n Путь к сервису Zabbix: %s\n Имя пользователя с полномочиями на добавление узлов: %s\n" \
         "${bold}${zabbix_register_server}${normal}" \
         "${bold}${zabbix_register_url_path}${normal}" \
         "${bold}${zabbix_register_user}${normal}"
@@ -91,14 +94,16 @@ showRunConditions() {
 
 # Функция, которая показывает как запускать скрипт:
 showHelp() {
-  printf "Как запускать:\n \
-  bash %s [-install|-add|-help] [-yes]\n \
+    printf "Назначение: %s\n" "${script_purpose}"
+    printf "Как запускать:\n \
+  bash %s [-install|-add|-help] [-yes] [-debug]\n \
   где, \n \
     %s -- актуальное имя файла, содержащее этот скрипт;\n \
     %s -- (необязательный параметр) запустить скрипт в режиме только установки zabbix-агента на хосты;\n \
     %s -- (необязательный параметр) запустить скрипт в режиме только добавления (регистрации) хостов на zabbix-сервере;\n \
     %s -- это информационное сообщение;\n \
-    %s -- (необязательный параметр) выполнение скрипта без дополнительных вопросов.\n \
+    %s -- (необязательный параметр) выполнение скрипта без дополнительных вопросов;\n \
+    %s -- (необязательный параметр) выполнение скрипта в режиме отладки (больше диагностических сообщений).\n \
     Если скрипт запущен без параметров, то будут выполнен в полном объеме (установка и добавление).\n \
     Если скрипт запущен без параметров или с параметром -add , то он запросит имя и пароль пользователя, имеющего право добавлять хосты.\n" \
     "${bold}${script_name}${normal}" \
@@ -106,11 +111,12 @@ showHelp() {
     "${bold}-i${normal}nstall" \
     "${bold}-a${normal}dd" \
     "${bold}-h${normal}elp" \
-    "${bold}-y${normal}es"
+    "${bold}-y${normal}es" \
+    "${bold}-d${normal}ebug"
 }
 
 
-
+# Для работы функций сохранение и извлечение параметров/значение в/из keyring может понадобиться установка дополнительных инструментов:
 # sudo apt install libsecret-tools
 
 # Функция для сохранения значения в хранилище gnome keyring (в "связку ключей"):
@@ -125,7 +131,7 @@ retrieveValueFromKeyring() {
     secret-tool lookup server "$1" type "$2"
 }
 
-
+# Функция "разбора" параметров командной строки:
 function parse_params() {
     local param
     while [[ $# -gt 0 ]]; do
@@ -143,11 +149,14 @@ function parse_params() {
                 script_flow=2
             ;;
             -[y]*)
-                script_yes_answer=1 # Ответ "Да" на все вопросы.
+                script_yes_answer=1 # Ответ "Да" на все вопросы скрипта ("пропускать вопросы").
             ;;
             -[h]*|-\?)
                 showHelp
                 exit 10
+            ;;
+            -[d]*)
+                DEBUG_MODE=1 # Включить "режим отладки".
             ;;
             *)
                 printf_color "${IYellow}" "Аргументы командной строки не распознаны!"
@@ -163,7 +172,7 @@ function parse_params() {
 parse_params "$@"
 
 if [[ ${DEBUG_MODE} -eq 1 ]]; then
-    # Если включён режим отладки, то добавить к строке запуска параметр -vvv
+    # Если включён режим отладки, то добавить к строке запуска параметр -vvv ("больше отладочной информации при работе ansible")
     extra_options="${extra_options}"" -vvv "
 fi
 
@@ -172,23 +181,30 @@ if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
     # Получение имени пользователя (на хостах):
     printf "Для установки Zabbix-агента на узлах необходимо указать имя пользователя с административными полномочиями.\n"
 
+    # Попытка прочитать значение из keyring:
     keyring_value1="$(retrieveValueFromKeyring "WindowsServer" "Name")"
+    # Если значение оказалось "не нулевое", то:
     if [[ -n ${keyring_value1} ]]; then
+        # Если скрипт работает без дополнительных вопросов:
         if [[ ${script_yes_answer} -eq 1 ]]; then
+            # Присвоить переменной полученное значение:
             zabbix_install_user=${keyring_value1}
-            # Если ранее было сохранено имя, то и пароль тоже:
+            # Если ранее было сохранено имя, то по-идее там был сохранён и пароль тоже:
             zabbix_install_password="$(retrieveValueFromKeyring "WindowsServer" "Password")"
             printf "Будет использовано ранее сохранённое имя (и пароль): %s.\n" "${zabbix_install_user}"
         else
+            # Иначе, переспросить о необходимости использовать именно это имя:
             echo "Обнаружено ранее сохранённое имя такого пользователя (${keyring_value1}). Использовать в этот раз?"
             select yn in "Yes / Да" "No / Нет"; do
                 case ${yn} in
                     Yes* )
+                        # Если ответ положительный, то использовать прочитанное значение:
                         zabbix_install_user=${keyring_value1}
                         # Если ранее было сохранено имя, то и пароль тоже:
                         zabbix_install_password="$(retrieveValueFromKeyring "WindowsServer" "Password")"
                         break;;
                     No* )
+                        # Если ответ отрицательный, то очистить переменные:
                         zabbix_install_user=""
                         keyring_value1=""
                         break;;
@@ -197,7 +213,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
             done
         fi
     fi
-
+    # Если значение переменной пустое:
     if [[ -z ${zabbix_install_user} ]]; then
         read -r -p "Введите имя пользователя (или нажмите [Enter] для выхода): " zabbix_install_user
         if [[ -z ${zabbix_install_user} ]]; then
@@ -213,7 +229,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 1 ]]; then
         if [[ -n ${zabbix_install_password} ]]; then
             echo "******"
         else
-            # Если пароль указан не был, то прервать выполнение скрипта
+            # Если пароль указан не был, то прервать выполнение скрипта:
             printf_color "${IRed}" "Пароль не введён. Выход из скрипта."
             exit 2
         fi
@@ -226,9 +242,13 @@ if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
     printf "Для публикации на сервере  (%s) сведений об узлах, на которых (будут) установлены zabbix-агенты, \
 необходимо указать имя пользователя с соответствующими полномочиями.\n" \
         "${zabbix_register_server}"
+    # Попытка прочитать значение из keyring:
     keyring_value2="$(retrieveValueFromKeyring "ZabbixServer" "Name")"
+    # Если значение "не пустое", то:
     if [[ -n ${keyring_value2} ]]; then
+        # Если скрипт работает в редиме "без вопросов", то:
         if [[ ${script_yes_answer} -eq 1 ]]; then
+            # Присвоить переменной прочитанное значение:
             zabbix_register_user=${keyring_value2}
             # Если ранее было сохранено имя, то и пароль тоже:
             zabbix_register_password="$(retrieveValueFromKeyring "ZabbixServer" "Password")"
@@ -238,11 +258,13 @@ if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
             select yn in "Yes / Да" "No / Нет"; do
                 case ${yn} in
                     Yes* )
+                        # Если ответ положительный, то присвоить переменной прочитанное значение:
                         zabbix_register_user=${keyring_value2}
                         # Если ранее было сохранено имя, то и пароль тоже:
                         zabbix_register_password="$(retrieveValueFromKeyring "ZabbixServer" "Password")"
                         break;;
                     No* )
+                        # Если ответ отрицательный, то очистить переменные:
                         zabbix_register_user=""
                         keyring_value2=""
                         break;;
@@ -251,6 +273,7 @@ if [[ ${script_flow} = 0 || ${script_flow} = 2 ]]; then
             done
         fi
     fi
+    # Если значение переменной не задано, то:
     if [[ -z ${zabbix_register_user} ]]; then
         read -r -p "Введите имя пользователя (или нажмите [Enter] для выхода): " zabbix_register_user
         if [[ -z ${zabbix_register_user} ]]; then
@@ -288,7 +311,6 @@ if [[ ${DEBUG_MODE} -eq 1 ]]; then
 fi
 
 # Установка на Windows:
-
 ansible-playbook -i "${hosts_files[1]}" "${yaml_filename}" \
                   "${extra_options}" \
                   --extra-vars "zabbix_install_user=${zabbix_install_user} \
@@ -307,7 +329,7 @@ ansible-playbook -i "${hosts_files[1]}" "${yaml_filename}" \
 # Регистрация SNMP:
 # ansible-playbook -i "${hosts_files[2]}" "${yaml_filename}"
 
-# Сохранение введённых в процессе выполнения скрипта реквизитов доступа:
+# Сохранение введённых в процессе выполнения скрипта реквизитов доступа (а если ничего не вводилось, то не сохранять):
 if [[ (( ${script_flow} = 0 || ${script_flow} = 1 ) && -z ${keyring_value1} ) || (( ${script_flow} = 0 ||  ${script_flow} = 2 ) && -z ${keyring_value2} ) ]]; then
     echo "Были введены имена и пароли. Сохранить их для следующих запусков скрипта?"
     select yn in "Yes / Да" "No / Нет"; do
@@ -326,7 +348,7 @@ if [[ (( ${script_flow} = 0 || ${script_flow} = 1 ) && -z ${keyring_value1} ) ||
                 break
             ;;
             No* ) break ;;
-            * ) echo "Необходимо выбрать вариант из предложенных (или Ctrl-C также для прерывания выполнения)." ;;
+            * ) echo "Необходимо выбрать вариант из предложенных (или Ctrl-C для прерывания выполнения)." ;;
         esac
     done
 fi
@@ -348,7 +370,8 @@ unset script_name
 unset extra_options
 unset script_flow
 unset script_yes_answer
-unset keyring_value
+unset keyring_value1
+unset keyring_value2
 unset bold
 unset normal
 unset IRed
